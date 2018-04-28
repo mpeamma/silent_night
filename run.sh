@@ -1,2 +1,2 @@
 #!/bin/bash
-make -C /usr/src/linux-`uname -r` SUBDIRS=$PWD modules
+make -C /usr/src/linux-headers-`uname -r` SUBDIRS=$PWD modules
